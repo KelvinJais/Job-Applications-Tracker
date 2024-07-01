@@ -7,6 +7,10 @@ import os
 import spacy
 from spacy.matcher import Matcher
 import pandas as pd
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+
 
 # Function to extract text from an HTML file
 def extract_text_from_html(html_content):
@@ -85,54 +89,65 @@ def feature_extractor(content):# Accepts a content of text and outputs a diction
     nlp = spacy.load("en_core_web_sm")# have the matcher code in a new function instead of creating one for every file
     matcher = Matcher(nlp.vocab)
     #apply patterns
-    matcher.add("receive application",[[{"lemma":"receive"},{"lower": "your"},{"lower": "application"}]])
-    matcher.add("receive your submsission",[[{"lemma":"receive"},{"lower": "your"},{"lower": "submission"}]])
-    matcher.add("review your application",[[{"lemma":"review"},{"lower": "your"},{"lower": "application"}]])
-    matcher.add("review your submission",[[{"lemma":"review"},{"lower": "your"},{"lower": "submission"}]])
-    matcher.add("review your resume",[[{"lemma":"review"},{"lower": "your"},{"lower": "resume"}]])
-    matcher.add("receive your resume",[[{"lemma":"receive"},{"lower": "your"},{"lower": "resume"}]])
-    matcher.add("application has been received",[[{"lower":"application"},{"lower": "has"},{"lower": "been"},{"LEMMA": "receive"}]])
-    matcher.add("we will review",[[{"LOWER":"we"},{"LOWER": "will"},{"LOWER": "review"}]])
-    matcher.add("currenly reviewing",[[{'LOWER': 'currently'},{'LOWER': 'reviewing'}]])
-    matcher.add("thanks for aplying",[[{'LEMMA': 'thank'},{'LOWER': 'for'},{'LOWER': 'applying'}]])
-    matcher.add("thank you very much for your application",[[{'LOWER': 'thank'},{'LOWER': 'you'},{'POS': 'ADV', 'OP': '*'},{'LOWER': 'for'},{'LOWER': 'your'},{'LOWER': 'application'}]])
-    matcher.add("thank you very much for your interest in company name",[[{'LOWER': 'thank'},{'LOWER': 'you'},{'POS': 'ADV', 'OP': '*'},{'LOWER': 'for'},{'LOWER': 'your'},{'LOWER': 'interest'},{'POS': 'ADP', 'OP': '?'},{'POS': 'PROPN', 'OP': '*'}]])
-    matcher.add("thank you for applying to company",[[{'LOWER': 'thank'},{'LOWER': 'you'},{'LOWER': 'for'},{'LOWER': 'applying'},{'IS_STOP': True},{'POS':"PROPN","OP":'*'}]])
-    matcher.add("than you for submitting resume",[[{'LOWER': 'thank'},{'LOWER': 'you'},{'LOWER': 'for'},{'LOWER': 'submitting'},{'LOWER': 'your'},{'LOWER': 'resume'}]])
-    matcher.add("will be reviewed", [[{"LOWER":"will"},{"LOWER": "be"},{"LEMMA": "review"}]])
-    matcher.add("your application", [[{"LOWER":"your"},{"LOWER": "application"}]])
-    matcher.add("submit", [[{"LEMMA":"submit"}]])
-    matcher.add("apply", [[{"LEMMA":"apply"}]])
-    matcher.add("appreciate", [[{"LEMMA":"appreciate"}]])
-    matcher.add("interest", [[{"LEMMA":"interest"}]])
-    matcher.add("review", [[{"LEMMA":"review"}]])
-    matcher.add("appreciate", [[{"LEMMA":"application"}]])
-    matcher.add("talent team", [[{'POS':"NOUN"},{"LOWER":'team'}]])
-    matcher.add("company team", [[{'POS':"PROPN","OP":"*"},{"LOWER":'team'}]])
+    matcher.add("receive application",[[{"lemma":"receive"},{"lower": "your"},{"lower": "application"}]],greedy="LONGEST")
+    matcher.add("receive your submsission",[[{"lemma":"receive"},{"lower": "your"},{"lower": "submission"}]],greedy="LONGEST")
+    matcher.add("review your application",[[{"lemma":"review"},{"lower": "your"},{"lower": "application"}]],greedy="LONGEST")
+    matcher.add("review your submission",[[{"lemma":"review"},{"lower": "your"},{"lower": "submission"}]],greedy="LONGEST")
+    matcher.add("review your resume",[[{"lemma":"review"},{"lower": "your"},{"lower": "resume"}]],greedy="LONGEST")
+    matcher.add("receive your resume",[[{"lemma":"receive"},{"lower": "your"},{"lower": "resume"}]],greedy="LONGEST")
+    matcher.add("application has been received",[[{"lower":"application"},{"lower": "has"},{"lower": "been"},{"LEMMA": "receive"}]],greedy="LONGEST")
+    matcher.add("we will review",[[{"LOWER":"we"},{"LOWER": "will"},{"LOWER": "review"}]],greedy="LONGEST")
+    matcher.add("currenly reviewing",[[{'LOWER': 'currently'},{'LOWER': 'reviewing'}]],greedy="LONGEST")
+    matcher.add("thanks for aplying",[[{'LEMMA': 'thank'},{'LOWER': 'for'},{'LOWER': 'applying'}]],greedy="LONGEST")
+    matcher.add("thank you very much for your application",[[{'LOWER': 'thank'},{'LOWER': 'you'},{'POS': 'ADV', 'OP': '*'},{'LOWER': 'for'},{'LOWER': 'your'},{'LOWER': 'application'}]],greedy="LONGEST")
+    matcher.add("thank you very much for your interest in company name",[[{'LOWER': 'thank'},{'LOWER': 'you'},{'POS': 'ADV', 'OP': '*'},{'LOWER': 'for'},{'LOWER': 'your'},{'LOWER': 'interest'},{'POS': 'ADP', 'OP': '?'},{'POS': 'PROPN', 'OP': '*'}]],greedy="LONGEST")
+    matcher.add("thank you for applying to company",[[{'LOWER': 'thank'},{'LOWER': 'you'},{'LOWER': 'for'},{'LOWER': 'applying'},{'IS_STOP': True},{'POS':"PROPN","OP":'*'}]],greedy="LONGEST")
+    matcher.add("than you for submitting resume",[[{'LOWER': 'thank'},{'LOWER': 'you'},{'LOWER': 'for'},{'LOWER': 'submitting'},{'LOWER': 'your'},{'LOWER': 'resume'}]],greedy="LONGEST")
+    matcher.add("will be reviewed", [[{"LOWER":"will"},{"LOWER": "be"},{"LEMMA": "review"}]],greedy="LONGEST")
+    matcher.add("your application", [[{"LOWER":"your"},{"LOWER": "application"}]],greedy="LONGEST")
+    matcher.add("submit", [[{"LEMMA":"submit"}]],greedy="LONGEST")
+    matcher.add("apply", [[{"LEMMA":"apply"}]],greedy="LONGEST")
+    matcher.add("appreciate", [[{"LEMMA":"appreciate"}]],greedy="LONGEST")
+    matcher.add("interest", [[{"LEMMA":"interest"}]],greedy="LONGEST")
+    matcher.add("review", [[{"LEMMA":"review"}]],greedy="LONGEST")
+    matcher.add("appreciate", [[{"LEMMA":"application"}]],greedy="LONGEST")
+    matcher.add("talent team", [[{'POS':"NOUN"},{"LOWER":'team'}]],greedy="LONGEST")
+    matcher.add("company team", [[{'POS':"PROPN","OP":"*"},{"LOWER":'team'}]],greedy="LONGEST")
     #reject patterns
-    matcher.add("although",[[{"LOWER":"although"}]])
-    matcher.add("however",[[{"LOWER":"however"}]])
-    matcher.add("regret",[[{"LOWER":"regret"}]])
-    matcher.add("unable",[[{"LOWER":"unable"}]])
-    matcher.add("unfortunately",[[{"LOWER":"unfortunately"}]])
-    matcher.add("unsuccessful",[[{"LOWER":"unsuccessful"}]])
-    matcher.add("not been selected",[[{"LOWER":"not"},{"POS":"AUX","OP":"?"},{"LEMMA":"select"}]])
-    matcher.add("at this time", [[{"LOWER":"at"},{"LOWER": "this"},{"LOWER": "time"}]])
-    matcher.add("not moving forward", [[{"LOWER":"not"},{"POS": "AUX"},{"LEMMA": "move"},{"LOWER": "forward"}]])# what is this exactly?
-    matcher.add("no longer under considerations", [[{'LOWER': 'no'},{'LOWER': 'longer'},{'LOWER': 'under'},{'LOWER': 'consideration'}]])
-    matcher.add("has been filled", [[{'LOWER': 'has'},{'LOWER': 'been'},{'LOWER': 'filled'}]])
-    matcher.add("other candidate", [[{'LOWER': 'other'},{'LEMMA': 'candidate'}]])
-    matcher.add("different candidate", [[{'LOWER': 'different'},{'LEMMA': 'candidate'}]])
-    matcher.add("other applicatns", [[{'LOWER': 'other'},{'LEMMA': 'applicant'}]])
-    matcher.add("different applicant", [[{'LOWER': 'different'},{'LEMMA': 'applicant'}]])
-    matcher.add("we have decided", [[{'LOWER': 'we'},{'LOWER': 'have'},{'LOWER': 'decided'}]])
+    matcher.add("although",[[{"LOWER":"although"}]],greedy="LONGEST")
+    matcher.add("however",[[{"LOWER":"however"}]],greedy="LONGEST")
+    matcher.add("regret",[[{"LOWER":"regret"}]],greedy="LONGEST")
+    matcher.add("unable",[[{"LOWER":"unable"}]],greedy="LONGEST")
+    matcher.add("unfortunately",[[{"LOWER":"unfortunately"}]],greedy="LONGEST")
+    matcher.add("unsuccessful",[[{"LOWER":"unsuccessful"}]],greedy="LONGEST")
+    matcher.add("not been selected",[[{"LOWER":"not"},{"POS":"AUX","OP":"?"},{"LEMMA":"select"}]],greedy="LONGEST")
+    matcher.add("at this time", [[{"LOWER":"at"},{"LOWER": "this"},{"LOWER": "time"}]],greedy="LONGEST")
+    matcher.add("not moving forward", [[{"LOWER":"not"},{"POS": "AUX"},{"LEMMA": "move"},{"LOWER": "forward"}]],greedy="LONGEST")# what is this exactly?
+    matcher.add("no longer under considerations", [[{'LOWER': 'no'},{'LOWER': 'longer'},{'LOWER': 'under'},{'LOWER': 'consideration'}]],greedy="LONGEST")
+    matcher.add("has been filled", [[{'LOWER': 'has'},{'LOWER': 'been'},{'LOWER': 'filled'}]],greedy="LONGEST")
+    matcher.add("other candidate", [[{'LOWER': 'other'},{'LEMMA': 'candidate'}]],greedy="LONGEST")
+    matcher.add("different candidate", [[{'LOWER': 'different'},{'LEMMA': 'candidate'}]],greedy="LONGEST")
+    matcher.add("other applicatns", [[{'LOWER': 'other'},{'LEMMA': 'applicant'}]],greedy="LONGEST")
+    matcher.add("different applicant", [[{'LOWER': 'different'},{'LEMMA': 'applicant'}]],greedy="LONGEST")
+    matcher.add("we have decided", [[{'LOWER': 'we'},{'LOWER': 'have'},{'LOWER': 'decided'}]],greedy="LONGEST")
 
     #other mail
-    matcher.add("yet",[[{"LOWER":"yet"}]])
-    matcher.add("yet to finish", [[{'LOWER': 'yet'},{'LOWER': 'to'},{'LOWER': 'finish'}]])
-    matcher.add("yet to submit", [[{'LOWER': 'yet'},{'LOWER': 'to'},{'LOWER': 'submit'}]])
-    matcher.add("continue applying", [[{'LOWER': 'continue'},{'LEMMA': 'apply'}]])
+    matcher.add("yet",[[{"LOWER":"yet"}]],greedy="LONGEST")
+    matcher.add("yet to finish", [[{'LOWER': 'yet'},{'LOWER': 'to'},{'LOWER': 'finish'}]],greedy="LONGEST")
+    matcher.add("yet to submit", [[{'LOWER': 'yet'},{'LOWER': 'to'},{'LOWER': 'submit'}]],greedy="LONGEST")
+    matcher.add("continue applying", [[{'LOWER': 'continue'},{'LEMMA': 'apply'}]],greedy="LONGEST")
     
+    doc = nlp(content)
+    matches = matcher(doc)
+    features={}
+    for match_id, start, end in matches:
+        string_id = nlp.vocab.strings[match_id]  # Get string representation
+        span = doc[start:end]  # The matched span
+        features[string_id] = features.setdefault(string_id, 0) + 1
+        #print(match_id, string_id, start, end, span.text)
+    return features
+
+def create_feature_bank(): #converting all the text files to features and save it to a pandas dataframe to be evaluated
     all_patterns=[# this variable contains all the patterns and will be used to create the column names for the pandas dataframe.
         "receive application",
         "receive your submsission",
@@ -180,14 +195,43 @@ def feature_extractor(content):# Accepts a content of text and outputs a diction
         "continue applying",
         ]
     df = pd.DataFrame(columns=all_patterns+['mail type'])
-    doc = nlp(content)
-    matches = matcher(doc)
-    features={}
-    for match_id, start, end in matches:
-        string_id = nlp.vocab.strings[match_id]  # Get string representation
-        span = doc[start:end]  # The matched span
-        features[string_id] = features.setdefault(string_id, 0) + 1
-        #print(match_id, string_id, start, end, span.text)
-    return features
+
+    def create_feature_bank_directory(directory,mail_type,df):
+        all_files=os.listdir(directory)
+        for file in all_files:
+            print(file)
+            with open(os.path.join(directory,file), 'r') as f:
+                content = f.read()
+            features=feature_extractor(content)
+            features['mail type']=mail_type 
+            df=dataframe_appending(features,df)
+        return df
+
+    df=create_feature_bank_directory("reject",0,df) # 0 for reject
+    df=create_feature_bank_directory("apply",1,df) # 1 for apply   
+    df=create_feature_bank_directory("other",2,df) # 2 for other mails   
+    df.to_excel('features.xlsx', index=False)
+        
+def random_forrest_model():
+    df = pd.read_excel('features.xlsx')
+    df.fillna(0, inplace=True)
+    # Assuming df is your pandas DataFrame
+    X = df.drop(columns=['mail type'])
+    Y = df['mail type']
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=22)
+    # Create the Random Forest model
+    rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+    # Train the model
+    rf_model.fit(X_train, Y_train)
+
+    # Evaluate the model
+    train_score = rf_model.score(X_train, Y_train)
+    test_score = rf_model.score(X_test, Y_test)
+
+    print(f'Training Accuracy: {train_score}')
+    print(f'Test Accuracy: {test_score}')
+
+
 if __name__=="__main__":
-    print(feature_extractor("Thank you for applying to Kelvin Corp."))
+    #create_feature_bank()
+    random_forrest_model() 
