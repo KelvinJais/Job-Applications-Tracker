@@ -1,88 +1,62 @@
+import sqlite3
 from simplegmail import Gmail
 from simplegmail.query import construct_query
 import os
 from bs4 import BeautifulSoup
 import re
-import os
-import spacy
-from spacy.matcher import Matcher
+
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
-import lightgbm as lgb
-# Function to extract text from an HTML file
+from sklearn.model_selection import train_test_split
+def database_init():
+    conn = sqlite3.connect('mail_database.db')
+    c= conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS Email(
+        thread TEXT,
+        sender TEXT,
+        subject TEXT,
+        date TEXT,
+        text TEXT
+        )
+              """)
+    return c,conn
+
+def insert_mail(c,conn,thread,sender,subject,date,text):
+    with conn:
+        c.execute("INSERT INTO Email VALUES (:thread,:sender,:subject,:date,:text)",{"thread":thread,"sender":sender,"subject":subject,"date":date,"text":text})
+    return None
+def get_all_mail(c,conn):
+    c.execute("SELECT * FROM Email")
+    all_mail=c.fetchall()
+    return all_mail
+
 def extract_text_from_html(html_content):
     soup = BeautifulSoup(html_content, 'lxml')
     text = soup.get_text().strip()
     clean_text = re.sub(r'\n+', '\n', text).strip()
     clean_text = clean_text.replace('\t', ' ')
+    clean_text = clean_text.replace('\xa0', ' ')
     clean_text = ' '.join(clean_text.split())
     return clean_text 
 
-def save_to_file(filename, content):
-    with open(filename, 'a') as file:
-        file.write(content + '\n')
-
-def clear_terminal():
-    os.system('clear')
-
-def get_mail(directory):
+def get_mail(c,conn):
     gmail = Gmail()
-    # Ensure the directories exist
-    os.makedirs(directory, exist_ok=True)
     query_params = {
-        "newer_than": (20, "day"),
+        #"newer_than": (1, "day"),
+        "labels":[["september intern letters"]]
         }
     messages = gmail.get_messages(query=construct_query(query_params))
     totalMessages=len(messages)
-    count=1
-    for message in messages[:200]:
-        if message.html:
-            string=message.id+"\n"+message.sender+"\n"+message.subject+"\n"+extract_text_from_html(message.html)
-        print(f"Message {count}/{totalMessages}")
-        print(string)
-        print()
-        save_to_file(os.path.join("other", f"other{count}.txt"), string)
-        count+=1
-        
-def get_mail_sort_by_hand(directory1, directory2):
-    gmail = Gmail()
-    os.makedirs(directory1, exist_ok=True)
-    os.makedirs(directory2, exist_ok=True)
-    query_params = {
-        "newer_than": (20, "day"),
-        }
-    messages = gmail.get_messages(query=construct_query(query_params))
-    totalMessages=len(messages)
-    directory1_count=1
-    directory2_count=1
     count=1
     for message in messages:
-        if message.html:
-            string=message.id+"\n"+message.sender+"\n"+message.subject+"\n"+extract_text_from_html(message.html)
-        print("Message {count}/{totalMessages}")
+        print(f"Message {count}/{totalMessages}")
         count+=1
-        print(string)
-        print()
-        option=input("Enter h for apply and l for reject:")
-        if option=="h":
-            save_to_file(os.path.join(directory1, f"{directory1}{directory1_count}.txt"), string)
-            directory1_count+=1 
-        elif option=="l":
-            save_to_file(os.path.join(directory2, f"{directory2}{directory2_count}.txt"), string)
-            directory2_count+=1
-        clear_terminal()     
-        
-def dataframe_appending(data,df):# Accepts a dictionary and a pandas dataframe. And appends the values in dictionary to dataframe and returns datafram
-    # Convert the dictionary to a DataFrame
-    new_row_df = pd.DataFrame([data])
-    # Ensure the new row has all columns, with NaN for missing columns
-    new_row_df = new_row_df.reindex(columns=df.columns)
-    # Concatenate the new row to the existing DataFrame
-    df = pd.concat([df, new_row_df], ignore_index=True)
-    return df
+        #print(message.thread_id,message.sender,message.subject,message.date,message.html)
+        insert_mail(c,conn,message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html))
 
+import spacy
+from spacy.matcher import Matcher
 def feature_extractor(content):# Accepts a content of text and outputs a dictionary
     nlp = spacy.load("en_core_web_sm")# have the matcher code in a new function instead of creating one for every file
     matcher = Matcher(nlp.vocab)
@@ -145,7 +119,7 @@ def feature_extractor(content):# Accepts a content of text and outputs a diction
         #print(match_id, string_id, start, end, span.text)
     return features
 
-def create_feature_bank(): #converting all the text files to features and save it to a pandas dataframe to be evaluated
+def create_df(): #converting all the text files to features and save it to a pandas dataframe to be evaluated
     all_patterns=[# this variable contains all the patterns and will be used to create the column names for the pandas dataframe.
         "receive application",
         "receive your submsission",
@@ -192,24 +166,24 @@ def create_feature_bank(): #converting all the text files to features and save i
         "yet to submit",
         "continue applying",
         ]
-    df = pd.DataFrame(columns=all_patterns+['mail type'])
+    df = pd.DataFrame(columns=all_patterns)
+    return df
 
-    def create_feature_bank_directory(directory,mail_type,df):
-        all_files=os.listdir(directory)
-        for file in all_files:
-            print(file)
-            with open(os.path.join(directory,file), 'r') as f:
-                content = f.read()
-            features=feature_extractor(content)
-            features['mail type']=mail_type 
-            df=dataframe_appending(features,df)
-        return df
+def mail_sort(c,conn,model):
+    all_mail=get_all_mail(c,conn)
+    df=create_df()
+    for mail in all_mail:
+        text=mail[-1]
+        print(text)
+        features=feature_extractor(text)
+        new_row_df = pd.DataFrame([features])
+        # Ensure the new row has all columns, with NaN for missing columns
+        new_row_df = new_row_df.reindex(columns=df.columns)
+        new_row_df.fillna(0, inplace=True)
+        print("*** the mail is of type*** ",model.predict(new_row_df))
+        print()
 
-    df=create_feature_bank_directory("reject",0,df) # 0 for reject
-    df=create_feature_bank_directory("apply",1,df) # 1 for apply   
-    df=create_feature_bank_directory("other",2,df) # 2 for other mails   
-    df.to_excel('features.xlsx', index=False)
-        
+
 def random_forrest_model():
     df = pd.read_excel('features.xlsx')
     df.fillna(0, inplace=True)
@@ -225,46 +199,11 @@ def random_forrest_model():
     # Evaluate the model
     train_score = rf_model.score(X_train, Y_train)
     test_score = rf_model.score(X_test, Y_test)
-
     print(f'random Forrest Training Accuracy: {train_score}')
     print(f'random Forrest Test Accuracy: {test_score}')
-    
-def check_ent(text):
-    nlp = spacy.load("en_core_web_sm")
-    doc=nlp(text)
-    if not doc.ents:
-        print("no ents")
-    for ent in doc.ents:
-        if ent.label_=="ORG":
-            print("\t ",ent.text)
+    return rf_model
 
-def read_file(file_path):
-    with open(file_path) as f:
-        content = f.read()
-    return content
-
-def getting_name_matcher(content):
-    nlp=spacy.load("en_core_web_sm")
-    matcher=Matcher(nlp.vocab)
-    matcher.add("position of",[[{"lemma":"position"},{"lower":"of"},{'POS':"PROPN","OP":"*"}]],greedy="LONGEST")
-    matcher.add("position for",[[{"lemma":"position"},{"lower":"for"},{'POS':"PROPN","OP":"*"}]],greedy="LONGEST")
-    matcher.add("position for the",[[{"lemma":"position"},{"lower":"for"},{"lower":"the"},{'POS':"PROPN","OP":"*"}]],greedy="LONGEST")
-    doc = nlp(content)
-    matches = matcher(doc)
-    for match_id, start, end in matches:
-        string_id = nlp.vocab.strings[match_id]  # Get string representation
-        span = doc[start:end]  # The matched span
-        ##print("\t",match_id, string_id, start, end, span.text)
-        print("\t",span.text)
-    
-def check_fn_all_files(directory,fn):
-    all_files=os.listdir(directory)
-    for file in all_files:
-        print(file)
-        content=read_file(os.path.join(directory,file))
-        fn(content)
-if __name__=="__main__":
-    #create_feature_bank()
-    random_forrest_model() 
-    #check_fn_all_files("apply",check_ent)
-
+if __name__ == "__main__":
+    c,conn=database_init()
+    model=random_forrest_model()
+    mail_sort(c,conn,model)
