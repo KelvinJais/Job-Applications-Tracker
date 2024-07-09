@@ -27,7 +27,7 @@ def save_to_file(filename, content):
 def clear_terminal():
     os.system('clear')
 
-def get_mail(directory):
+def sgmail_getmail(directory):
     gmail = Gmail()
     # Ensure the directories exist
     os.makedirs(directory, exist_ok=True)
@@ -38,15 +38,14 @@ def get_mail(directory):
     totalMessages=len(messages)
     count=1
     for message in messages[:200]:
-        if message.html:
-            string=message.id+"\n"+message.sender+"\n"+message.subject+"\n"+extract_text_from_html(message.html)
+        string=message.id+"\n"+message.sender+"\n"+message.subject+"\n"+extract_text_from_html(message.html)
         print(f"Message {count}/{totalMessages}")
         print(string)
         print()
         save_to_file(os.path.join("other", f"other{count}.txt"), string)
         count+=1
         
-def get_mail_sort_by_hand(directory1, directory2):
+def sgmail_sort_by_hand(directory1, directory2):
     gmail = Gmail()
     os.makedirs(directory1, exist_ok=True)
     os.makedirs(directory2, exist_ok=True)
@@ -59,8 +58,7 @@ def get_mail_sort_by_hand(directory1, directory2):
     directory2_count=1
     count=1
     for message in messages:
-        if message.html:
-            string=message.id+"\n"+message.sender+"\n"+message.subject+"\n"+extract_text_from_html(message.html)
+        string=message.id+"\n"+message.sender+"\n"+message.subject+"\n"+extract_text_from_html(message.html)
         print("Message {count}/{totalMessages}")
         count+=1
         print(string)
@@ -108,7 +106,6 @@ def feature_extractor(content):# Accepts a content of text and outputs a diction
     matcher.add("appreciate", [[{"LEMMA":"appreciate"}]],greedy="LONGEST")
     matcher.add("interest", [[{"LEMMA":"interest"}]],greedy="LONGEST")
     matcher.add("review", [[{"LEMMA":"review"}]],greedy="LONGEST")
-    matcher.add("appreciate", [[{"LEMMA":"application"}]],greedy="LONGEST")
     matcher.add("talent team", [[{'POS':"NOUN"},{"LOWER":'team'}]],greedy="LONGEST")
     matcher.add("company team", [[{'POS':"PROPN","OP":"*"},{"LOWER":'team'}]],greedy="LONGEST")
     #reject patterns
@@ -168,7 +165,6 @@ def create_feature_bank(): #converting all the text files to features and save i
         "appreciate",
         "interest",
         "review",
-        "appreciate",
         "talent team",
         "company team",
         "although",
@@ -216,7 +212,7 @@ def random_forrest_model():
     # Assuming df is your pandas DataFrame
     X = df.drop(columns=['mail type'])
     Y = df['mail type']
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=22)
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, random_state=22)
     # Create the Random Forest model
     rf_model = RandomForestClassifier(n_estimators=50, random_state=42)
     # Train the model
@@ -224,10 +220,10 @@ def random_forrest_model():
 
     # Evaluate the model
     train_score = rf_model.score(X_train, Y_train)
-    test_score = rf_model.score(X_test, Y_test)
+    #test_score = rf_model.score(X_test, Y_test)
 
     print(f'random Forrest Training Accuracy: {train_score}')
-    print(f'random Forrest Test Accuracy: {test_score}')
+    #print(f'random Forrest Test Accuracy: {test_score}')
     
 def check_ent(text):
     nlp = spacy.load("en_core_web_sm")
@@ -264,7 +260,7 @@ def check_fn_all_files(directory,fn):
         content=read_file(os.path.join(directory,file))
         fn(content)
 if __name__=="__main__":
-    #create_feature_bank()
+    create_feature_bank()
     random_forrest_model() 
     #check_fn_all_files("apply",check_ent)
 
