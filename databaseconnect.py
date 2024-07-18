@@ -1,12 +1,26 @@
 import sqlite3
+import spacy
+from catalogue import create
+from pandas.compat import get_lzma_file
 from simplegmail import Gmail
 from simplegmail.query import construct_query
 from bs4 import BeautifulSoup
 import re
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from main import clear_terminal, feature_extractor
+from main import clear_terminal, dataframe_appending, feature_extractor
 from sklearn.model_selection import train_test_split
+from sqlalchemy import create_engine
+from tqdm import tqdm
+from sklearn.metrics import classification_report
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
 
 class mail:
     def __init__(self):
@@ -22,7 +36,6 @@ class mail:
         category TEXT
         )
               """)
-        print("Database initialized")
     def insertMail(self,thread,sender,subject,date,text,category):
         with self.connection:
             self.cursor.execute("INSERT INTO Email VALUES (:thread,:sender,:subject,:date,:text,:category)",{"thread":thread,"sender":sender,"subject":subject,"date":date,"text":text,"category":category})
@@ -43,6 +56,12 @@ class mail:
             print(f"Category: {mail[5]}")
             print("--------------------------------------------------------------------------------------------------------------------------------------")
         return None
+    def toPandas(self):
+        query = "SELECT * FROM Email"
+        df = pd.read_sql_query(query, self.connection)
+        self.connection.close() 
+        df['category_code'] = df['category'].map({'Apply': 0, 'Reject': 1, 'Other': 2})
+        return df
 
 def extract_text_from_html(html_content):
     soup = BeautifulSoup(html_content, 'lxml')
@@ -99,11 +118,12 @@ def create_db(): #converting all the text files to features and save it to a pan
         "yet to submit",
         "continue applying",
         ]
-    df = pd.DataFrame(columns=all_patterns)
+    df = pd.DataFrame(columns=all_patterns+['mail type'])
     return df
 
 def predictor(text,model):
     df=create_db()
+    print(df.columns)
     features=feature_extractor(text)
     new_row_df = pd.DataFrame([features])
     # Ensure the new row has all columns, with NaN for missing columns
@@ -134,26 +154,148 @@ def get_mail_sort_by_hand(mail_db):
     gmail = Gmail()
     query_params = {
         #"newer_than": (1, "day"),
-        "labels":[["intern letters"]]
+        "after":"2024/5/1",
+        "labels":[["Other"]]
         }
     messages = gmail.get_messages(query=construct_query(query_params))
     totalMessages=len(messages)
     count=1
-    model=random_forrest_model()
     for message in messages:
         print(f"Message {count}/{totalMessages}")
         count+=1
+        print(message.thread_id)
+        print(message.subject)
         print(extract_text_from_html(message.html))
-        choice=input("Enter h for apply l for reject: ")
-        if choice=='h':
-            mail_db.insertMail(message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html),"Apply")
-        elif choice=='l':
-            mail_db.insertMail(message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html),"Reject")
-
+        mail_db.insertMail(message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html),"Other")
+        #choice=input("Enter h for apply l for reject: ")
+        #if choice == 'h':
+        #    mail_db.insertMail(message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html),"Apply")
+        #elif choice =='l':
+        #    mail_db.insertMail(message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html),"Reject")
+        #clear_terminal()
     return None
+
+def create_feature_bank(mail_db):
+    #get the texts
+    df=create_db()
+    mails=mail_db.get_all_mail()
+    mails_text=[i[4] for i in mails]
+    mail_type=[i[5] for i in mails]
+    pbar=tqdm(total=len(mail_type))
+    for i in range(len(mail_type)):
+        pbar.update(1)
+        features=feature_extractor(mails_text[i])
+        if mail_type[i] == "Apply":
+            features['mail type']=0
+        if mail_type[i] == "Reject":
+            features['mail type']=1
+        if mail_type[i] == "Other":
+            features['mail type']=2
+        df=dataframe_appending(features,df)
+    pbar.close()
+    df.to_excel("features.xlsx",index=False)
+    return df
+def stage1predictor():
+    df = pd.read_excel('features.xlsx')
+    df.fillna(0, inplace=True)
+    # Assuming df is your pandas DataFrame
+    X = df.drop(columns=['mail type'])
+    Y = df['mail type']
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y,test_size=0.5,random_state=22)
+    # Create the Random Forest model
+    rf_model = RandomForestClassifier(n_estimators=50, random_state=42)
+    # Train the model
+    rf_model.fit(X_train, Y_train)
+
+    # Evaluate the model
+    train_score = rf_model.score(X_train, Y_train)
+    test_score = rf_model.score(X_test, Y_test)
+
+    print(f'random Forrest Training Accuracy: {train_score}')
+    print(f'random Forrest Test Accuracy: {test_score}')
+    Y_pred = rf_model.predict(X_test)
+    # Print the classification report
+    print("\nClassification Report:")
+    print(classification_report(Y_test, Y_pred))
+
+def preprocess(text):
+    nlp=spacy.load("en_core_web_sm")
+    doc=nlp(text)
+    filtered_tokens = []
+    for token in doc:
+        if token.is_stop or token.is_punct or token.text.lower()=='kelvin':# NOTE: removing name, stop and punctuation
+            continue
+        filtered_tokens.append(token.lemma_)
+    
+    return " ".join(filtered_tokens) 
+
+def bagOfWords(mail_db):
+    df=mail_db.toPandas()
+    pbar=tqdm(total=len(df))
+    corpus_processed=[]
+    for text in df['text']:
+        pbar.update(1)
+        corpus_processed.append(preprocess(text))
+    pbar.close()
+    X_train, X_test, y_train, y_test = train_test_split(
+        corpus_processed,
+    df['category_code'],
+    test_size=0.2, # 20% samples will go to test dataset
+    )
+    clf = Pipeline([
+        #('vectorizer_bow', CountVectorizer(ngram_range = (1, 5))),        #using the ngram_range parameter 
+        ('vectorizer_tfidf',TfidfVectorizer()),    
+         ('Multi NB', MultinomialNB())         
+    ])
+    #2. fit with X_train and y_train
+    clf.fit(X_train, y_train)
+    #3. get the predictions for X_test and store it in y_pred
+    y_pred = clf.predict(X_test)
+    print(classification_report(y_test, y_pred))
+
+def bagOfWords_diagnosis(mail_db):
+    df=mail_db.toPandas()
+    data=df['text']
+    pbar=tqdm(total=len(data))
+    corpus_processed=[]
+    for text in data:
+        pbar.update(1)
+        corpus_processed.append(preprocess(text))
+    pbar.close()
+    X_train, X_test, y_train, y_test = train_test_split(
+        data,
+    df['category_code'],
+    test_size=0.2, # 20% samples will go to test dataset
+    )
+ #   clf = Pipeline([
+ #       ('vectorizer_bow', CountVectorizer(ngram_range = (1, 6))),        #using the ngram_range parameter 
+ #       #('vectorizer_tfidf',TfidfVectorizer()),    
+ #        ('Multi NB', MultinomialNB())         
+ #   ])
+ #   #2. fit with X_train and y_train
+ #   clf.fit(X_train, y_train)
+ #   #3. get the predictions for X_test and store it in y_pred
+ #   y_pred = clf.predict(X_test)
+ ## List of classifiers to be trained and evaluated
+    classifiers = {
+        'Multinomial Naive Bayes': MultinomialNB(),
+        'Random Forest': RandomForestClassifier(),
+    }
+
+    for name, clf in classifiers.items():
+        pipeline = Pipeline([
+            ('vectorizer_bow', CountVectorizer(ngram_range=(1, 7))),
+            ('classifier', clf)
+        ])
+        # Fit the model
+        pipeline.fit(X_train, y_train)
+        # Predict the test set
+        y_pred = pipeline.predict(X_test)
+        # Print classification report
+        print(f"Classification Report for {name}:")
+        print(classification_report(y_test, y_pred))
+        print("\n")
 
 if __name__ == "__main__":
     mail_db=mail()
     get_mail_sort_by_hand(mail_db)
-    
-    

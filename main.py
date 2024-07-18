@@ -190,7 +190,7 @@ def create_feature_bank(): #converting all the text files to features and save i
         ]
     df = pd.DataFrame(columns=all_patterns+['mail type'])
 
-    def create_feature_bank_directory(directory,mail_type,df):
+    def create_feature_bank_directory_old(directory,mail_type,df):
         all_files=os.listdir(directory)
         for file in all_files:
             print(file)
@@ -201,9 +201,9 @@ def create_feature_bank(): #converting all the text files to features and save i
             df=dataframe_appending(features,df)
         return df
 
-    df=create_feature_bank_directory("reject",0,df) # 0 for reject
-    df=create_feature_bank_directory("apply",1,df) # 1 for apply   
-    df=create_feature_bank_directory("other",2,df) # 2 for other mails   
+    df=create_feature_bank_directory_old("reject",0,df) # 0 for reject
+    df=create_feature_bank_directory_old("apply",1,df) # 1 for apply   
+    df=create_feature_bank_directory_old("other",2,df) # 2 for other mails   
     df.to_excel('features.xlsx', index=False)
         
 def random_forrest_model():
