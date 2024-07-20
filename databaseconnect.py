@@ -21,7 +21,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
-
+from sklearn.metrics import confusion_matrix
 class mail:
     def __init__(self):
         self.connection=sqlite3.connect('mail_database.db')
@@ -154,8 +154,7 @@ def get_mail_sort_by_hand(mail_db):
     gmail = Gmail()
     query_params = {
         #"newer_than": (1, "day"),
-        "after":"2024/5/1",
-        "labels":[["Other"]]
+        "labels":[["may intern letters"]] 
         }
     messages = gmail.get_messages(query=construct_query(query_params))
     totalMessages=len(messages)
@@ -166,13 +165,12 @@ def get_mail_sort_by_hand(mail_db):
         print(message.thread_id)
         print(message.subject)
         print(extract_text_from_html(message.html))
-        mail_db.insertMail(message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html),"Other")
-        #choice=input("Enter h for apply l for reject: ")
-        #if choice == 'h':
-        #    mail_db.insertMail(message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html),"Apply")
-        #elif choice =='l':
-        #    mail_db.insertMail(message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html),"Reject")
-        #clear_terminal()
+        choice=input("Enter h for apply l for reject: ")
+        if choice == 'h':
+            mail_db.insertMail(message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html),"Apply")
+        elif choice =='l':
+            mail_db.insertMail(message.thread_id,message.sender,message.subject,message.date,extract_text_from_html(message.html),"Reject")
+        clear_terminal()
     return None
 
 def create_feature_bank(mail_db):
@@ -229,62 +227,28 @@ def preprocess(text):
     
     return " ".join(filtered_tokens) 
 
-def bagOfWords(mail_db):
-    df=mail_db.toPandas()
-    pbar=tqdm(total=len(df))
-    corpus_processed=[]
-    for text in df['text']:
-        pbar.update(1)
-        corpus_processed.append(preprocess(text))
-    pbar.close()
-    X_train, X_test, y_train, y_test = train_test_split(
-        corpus_processed,
-    df['category_code'],
-    test_size=0.2, # 20% samples will go to test dataset
-    )
-    clf = Pipeline([
-        #('vectorizer_bow', CountVectorizer(ngram_range = (1, 5))),        #using the ngram_range parameter 
-        ('vectorizer_tfidf',TfidfVectorizer()),    
-         ('Multi NB', MultinomialNB())         
-    ])
-    #2. fit with X_train and y_train
-    clf.fit(X_train, y_train)
-    #3. get the predictions for X_test and store it in y_pred
-    y_pred = clf.predict(X_test)
-    print(classification_report(y_test, y_pred))
-
-def bagOfWords_diagnosis(mail_db):
+def bag_of_words(mail_db):
     df=mail_db.toPandas()
     data=df['text']
-    pbar=tqdm(total=len(data))
-    corpus_processed=[]
-    for text in data:
-        pbar.update(1)
-        corpus_processed.append(preprocess(text))
-    pbar.close()
+#    pbar=tqdm(total=len(data))
+#    corpus_processed=[]
+#    for text in data:
+#        pbar.update(1)
+#        corpus_processed.append(preprocess(text))
+#    pbar.close()
     X_train, X_test, y_train, y_test = train_test_split(
-        data,
-    df['category_code'],
-    test_size=0.2, # 20% samples will go to test dataset
-    )
- #   clf = Pipeline([
- #       ('vectorizer_bow', CountVectorizer(ngram_range = (1, 6))),        #using the ngram_range parameter 
- #       #('vectorizer_tfidf',TfidfVectorizer()),    
- #        ('Multi NB', MultinomialNB())         
- #   ])
- #   #2. fit with X_train and y_train
- #   clf.fit(X_train, y_train)
- #   #3. get the predictions for X_test and store it in y_pred
- #   y_pred = clf.predict(X_test)
- ## List of classifiers to be trained and evaluated
+                        data,
+                        df['category_code'],
+                        test_size=0.2, # 20% samples will go to test dataset
+                        )
     classifiers = {
         'Multinomial Naive Bayes': MultinomialNB(),
         'Random Forest': RandomForestClassifier(),
-    }
+                    }
 
     for name, clf in classifiers.items():
         pipeline = Pipeline([
-            ('vectorizer_bow', CountVectorizer(ngram_range=(1, 7))),
+            ('vectorizer_bow', CountVectorizer(ngram_range=(1, 10))),
             ('classifier', clf)
         ])
         # Fit the model
@@ -295,7 +259,9 @@ def bagOfWords_diagnosis(mail_db):
         print(f"Classification Report for {name}:")
         print(classification_report(y_test, y_pred))
         print("\n")
-
+        print(f"Confusion Matrix Report for {name}:")
+        print((confusion_matrix(y_test, y_pred,)))
+        print("\n")
 if __name__ == "__main__":
     mail_db=mail()
-    get_mail_sort_by_hand(mail_db)
+    bag_of_words(mail_db)
