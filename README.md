@@ -1,12 +1,7 @@
 # A Job Applications Tracker app.
 
-Works by reading through your email and using nlp to extract company names and job
+Works by reading through your email, using NLP to extract company names and jobs while updating a database, allowing you to keep track of all your applications.
 
-## Notes
-
-The text "Thank you for applying to Kelvin Corp."
-returned this {'apply': 1, 'thank you for applying to company': 1}, Even though I specified greedy as longest.
-
-## To do
-
-->Gotta move the matcher declarion to a function and pass as argument to function. instead of creating one for every feature extraction. Slows down the code
+## Current Updates
+### Stage 1: Classifying emails as Apply, Reject, or Regular mail
+-> Current model uses a bag of n-grams model and a random forest model to classify the model. The current model has an accuracy of 98 percent on the test set.
