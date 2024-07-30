@@ -1,5 +1,5 @@
 from simplegmail import Gmail
-from simplegmail.query import construct_query
+
 import os
 from bs4 import BeautifulSoup
 import re

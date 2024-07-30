@@ -262,6 +262,7 @@ def bag_of_words(mail_db):
         print(f"Confusion Matrix Report for {name}:")
         print((confusion_matrix(y_test, y_pred,)))
         print("\n")
+
 if __name__ == "__main__":
     mail_db=mail()
     bag_of_words(mail_db)
