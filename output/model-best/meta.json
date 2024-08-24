@@ -1,0 +1,58 @@
+{
+  "lang":"en",
+  "name":"pipeline",
+  "version":"0.0.0",
+  "spacy_version":">=3.7.4,<3.8.0",
+  "description":"",
+  "author":"",
+  "email":"",
+  "url":"",
+  "license":"",
+  "spacy_git_version":"bff8725f4",
+  "vectors":{
+    "width":0,
+    "vectors":0,
+    "keys":0,
+    "name":null,
+    "mode":"default"
+  },
+  "labels":{
+    "tok2vec":[
+
+    ],
+    "ner":[
+      "COMPANY",
+      "JOB TITLE"
+    ]
+  },
+  "pipeline":[
+    "tok2vec",
+    "ner"
+  ],
+  "components":[
+    "tok2vec",
+    "ner"
+  ],
+  "disabled":[
+
+  ],
+  "performance":{
+    "ents_f":0.9794933655,
+    "ents_p":0.968973747,
+    "ents_r":0.9902439024,
+    "ents_per_type":{
+      "COMPANY":{
+        "p":0.9657320872,
+        "r":0.9967845659,
+        "f":0.9810126582
+      },
+      "JOB TITLE":{
+        "p":0.9795918367,
+        "r":0.9696969697,
+        "f":0.9746192893
+      }
+    },
+    "tok2vec_loss":132.8522740574,
+    "ner_loss":338.4878902801
+  }
+}
