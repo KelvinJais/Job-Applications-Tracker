@@ -178,8 +178,8 @@ def training(training_data):
                 ents.append(span)
             else:
                 nulls_bro+=1
-        print(ents)
         doc.ents = ents
+        print(ents)
         db.add(doc)
     print(f" The nulls you got {nulls_bro}")
     db.to_disk("./train.spacy")
@@ -206,7 +206,7 @@ Adobe Systems Incorporated"""
         print(ent.text,ent.label_)
 
 if __name__ == "__main__":
-    #mail_db=mail()
+    mail_db=mail()
     #mails=getting_apply_reject_mail(mail_db)
     prediction_test()
 

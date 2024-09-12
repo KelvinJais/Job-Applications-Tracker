@@ -1,4 +1,5 @@
 import sqlite3
+import pickle
 import spacy
 from catalogue import create
 from pandas.compat import get_lzma_file
@@ -221,21 +222,20 @@ def preprocess(text):
     doc=nlp(text)
     filtered_tokens = []
     for token in doc:
-        if token.is_stop or token.is_punct or token.text.lower()=='kelvin':# NOTE: removing name, stop and punctuation
+        if token.is_stop or token.text.lower()=='kelvin':
             continue
         filtered_tokens.append(token.lemma_)
-    
     return " ".join(filtered_tokens) 
 
 def bag_of_words(mail_db):
     df=mail_db.toPandas()
     data=df['text']
-#    pbar=tqdm(total=len(data))
-#    corpus_processed=[]
-#    for text in data:
-#        pbar.update(1)
-#        corpus_processed.append(preprocess(text))
-#    pbar.close()
+    #pbar=tqdm(total=len(data))
+    #corpus_processed=[]
+    #for text in data:
+    #    pbar.update(1)
+    #    corpus_processed.append(preprocess(text))
+    #pbar.close()
     X_train, X_test, y_train, y_test = train_test_split(
                         data,
                         df['category_code'],
@@ -262,6 +262,11 @@ def bag_of_words(mail_db):
         print(f"Confusion Matrix Report for {name}:")
         print((confusion_matrix(y_test, y_pred,)))
         print("\n")
+        if name == 'Random Forest':
+            with open('part1model.pkl', 'wb') as model_file:
+                    pickle.dump(pipeline, model_file)
+            print(f"Random Forest model saved as 'part1model.pkl'\n")
+
 
 if __name__ == "__main__":
     mail_db=mail()
