@@ -9,6 +9,7 @@ class mail:
         self.cursor=self.connection.cursor()
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS Email(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         thread TEXT,
         sender TEXT,
         subject TEXT,
@@ -19,6 +20,7 @@ class mail:
               """)
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS PrimTable(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         company TEXT,
         job TEXT,
         category TEXT,
@@ -28,6 +30,7 @@ class mail:
 
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS Dates(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         start_date TEXT,
         current_date TEXT
         )
@@ -35,7 +38,8 @@ class mail:
 
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS Stats(
-        current_appled INT,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        current_applied INT,
         current_reject INT,
         total_applied INT,
         total_reject INT
@@ -45,37 +49,39 @@ class mail:
 
     def inputing_test_data(self):
         with self.connection:
-            self.cursor.execute("INSERT INTO Dates VALUES (:start_date,:current_date)",("08/11/2023","08/17/2023"))
+            #self.cursor.execute("INSERT INTO Dates VALUES (:start_date,:current_date)",("08/11/2023","08/17/2023"))
+            self.cursor.execute("INSERT INTO Dates (start_date,current_date) VALUES (\"08/11/2023\",\"08/17/2023\")")
 
         with self.connection:
-            self.cursor.execute("INSERT INTO Stats VALUES (5,1,100,20)")
+            self.cursor.execute("INSERT INTO Stats (current_applied,current_reject,total_applied,total_reject) VALUES (5,1,100,20)")
+            self.cursor.execute("INSERT INTO Stats (current_applied,current_reject,total_applied,total_reject) VALUES (6,2,200,30)")
 
     def insertMail(self,thread,sender,subject,date,text,category):
         with self.connection:
             self.cursor.execute("INSERT INTO Email VALUES (:thread,:sender,:subject,:date,:text,:category)",{"thread":thread,"sender":sender,"subject":subject,"date":date,"text":text,"category":category})
         return None
 
-    def get_current_date(self):
-        self.cursor.execute("SELECT start FROM Dates")
-        all_mail=self.cursor.fetchall()
+    def get_latest_dates(self):
+        self.cursor.execute("SELECT * FROM Dates ORDER BY id DESC LIMIT 1")
+        stats=self.cursor.fetchone()
+        _,start_date,current_date=stats
+        return start_date,current_date
 
-    def set_current_date(self, current_date):
+    def set_dates(self,start_date,current_date):
         with self.connection:
-            self.cursor.execute("INSERT INTO Dates VALUES (:current_date)",{"current_date":current_date})
-
-    def set_start_date(self, start_date):
-        with self.connection:
-            self.cursor.execute("INSERT INTO Dates VALUES (:start_date)",{"start_date":start_date})
+            self.cursor.execute('INSERT INTO dates (start_date, current_date) VALUES (?, ?)',(start_date, current_date))
 
     def get_all_mail(self):
         self.cursor.execute("SELECT * FROM Email")
         all_mail=self.cursor.fetchall()
         return all_mail
 
-    def get_all_stats(self):
-        self.cursor.execute("SELECT * FROM Stats")
-        stats=self.cursor.fetchall()
-        return stats
+    def get_latest_stats(self):
+        self.cursor.execute("SELECT * FROM Stats ORDER BY id DESC LIMIT 1")
+        stats=self.cursor.fetchone()
+        _,current_applied,current_reject,total_applied,total_reject=stats
+        return current_applied,current_reject,total_applied,total_reject
+
 
     def print_all_mail(self):
         self.cursor.execute("SELECT * FROM Email")
@@ -115,20 +121,18 @@ def reload():
 def stats(ctx,reload,print):
     """Describe the data"""
     maildb=ctx.obj['MAIL']
-    #click.echo(maildb.get_start_date())
-    #click.echo(maildb.get_all_stats())
-    
-    current_active,applied,rejects,total_applied,total_rejects=0,0,0,0,0
+    if reload:
+        click.echo("wasap")
+
+    applied,rejects,total_applied,total_rejects=maildb.get_latest_stats()
     click.echo(f"""
-    Current Active Applications(Applied-Rejects):{current_active}
+    Current Active Applications(Applied-Rejects):{total_applied-total_rejects}
 
     Applied since last load:{applied}
     Rejects since last load:{rejects}
 
     Total Applied:{total_applied}
     Total Rejects:{total_rejects}
-
-    **use main stats -r to reload and see the current stats
     """)
     if print:
         click.echo("print is active")
