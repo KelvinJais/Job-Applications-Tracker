@@ -1,5 +1,6 @@
 import click
-import simplegmail
+from simplegmail import Gmail
+from simplegmail.query import construct_query
 import sqlite3
 import pandas as pd
 from datetime import datetime,timedelta
@@ -49,8 +50,7 @@ class mail:
 
     def inputing_test_data(self):
         with self.connection:
-            #self.cursor.execute("INSERT INTO Dates VALUES (:start_date,:current_date)",("08/11/2023","08/17/2023"))
-            self.cursor.execute("INSERT INTO Dates (start_date,current_date) VALUES (\"08/11/2023\",\"08/17/2023\")")
+            self.cursor.execute("INSERT INTO Dates (start_date,current_date) VALUES (\"2024-09-11 20:55:05-04:00\",\"2024-09-16 20:55:05-04:00\")")
 
         with self.connection:
             self.cursor.execute("INSERT INTO Stats (current_applied,current_reject,total_applied,total_reject) VALUES (5,1,100,20)")
@@ -122,7 +122,29 @@ def stats(ctx,reload,print):
     """Describe the data"""
     maildb=ctx.obj['MAIL']
     if reload:
+        gmail=Gmail()
+        date_format = "%Y-%m-%d %H:%M:%S%z"
+        start_date,current_date=maildb.get_latest_dates()
+
+        start_date=datetime.strptime(start_date, date_format)
+        current_date=datetime.strptime(current_date, date_format)
+        query_params = {
+            "after":current_date.strftime("%Y/%m/%d"),
+            }
+        messages = gmail.get_messages(query=construct_query(query_params))
+        filtered_messages=[]
+        for message in messages:
+            datetime.strptime(message.date,date_format)
+            if datetime.strptime(message.date,date_format)>current_date:
+                filtered_messages.append(message)
+
+        totalMessages=len(messages)
+        for message in filtered_messages:
+            click.echo(message.date)
         click.echo("wasap")
+        click.echo(filtered_messages[0].date)
+
+        #maildb.set_dates(start_date,filtered_messages[0].date) TODO: when in production update dates
 
     applied,rejects,total_applied,total_rejects=maildb.get_latest_stats()
     click.echo(f"""
