@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 import re
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from main import clear_terminal, dataframe_appending, feature_extractor
+from old_main import clear_terminal, dataframe_appending, feature_extractor
 from sklearn.model_selection import train_test_split
 from sqlalchemy import create_engine
 from tqdm import tqdm
@@ -25,7 +25,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import confusion_matrix
 class mail:
     def __init__(self):
-        self.connection=sqlite3.connect('mail_database.db')
+        self.connection=sqlite3.connect('training.db')
         self.cursor=self.connection.cursor()
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS Email(
@@ -229,13 +229,8 @@ def preprocess(text):
 
 def bag_of_words(mail_db):
     df=mail_db.toPandas()
-    data=df['text']
-    #pbar=tqdm(total=len(data))
-    #corpus_processed=[]
-    #for text in data:
-    #    pbar.update(1)
-    #    corpus_processed.append(preprocess(text))
-    #pbar.close()
+    data=df['subject']+df['text'] # NOTE: Should try including the subject too
+    print(data[0])
     X_train, X_test, y_train, y_test = train_test_split(
                         data,
                         df['category_code'],
@@ -263,10 +258,9 @@ def bag_of_words(mail_db):
         print((confusion_matrix(y_test, y_pred,)))
         print("\n")
         if name == 'Random Forest':
-            with open('part1model.pkl', 'wb') as model_file:
-                    pickle.dump(pipeline, model_file)
+            #with open('part1model.pkl', 'wb') as model_file:
+                   # pickle.dump(pipeline, model_file)
             print(f"Random Forest model saved as 'part1model.pkl'\n")
-
 
 if __name__ == "__main__":
     mail_db=mail()

@@ -1,9 +1,22 @@
 import click
+import spacy
+import pickle
 from simplegmail import Gmail
 from simplegmail.query import construct_query
 import sqlite3
 import pandas as pd
 from datetime import datetime,timedelta
+from bs4 import BeautifulSoup
+import re
+def extract_text_from_html(html_content):
+    soup = BeautifulSoup(html_content, 'lxml')
+    text = soup.get_text().strip()
+    clean_text = re.sub(r'\n+', '\n', text).strip()
+    clean_text = clean_text.replace('\t', ' ')
+    clean_text = clean_text.replace('\xa0', ' ')
+    clean_text = ' '.join(clean_text.split())
+    return clean_text 
+
 class mail:
     def __init__(self):
         self.connection=sqlite3.connect(':memory:')
@@ -114,6 +127,21 @@ def cli(ctx):
 def reload():
     print("reloading")
 
+def part_1_predictor(text):
+    df=pd.Series(text)
+    with open('part1model.pkl', 'rb') as model_file:
+        random_forrest_model = pickle.load(model_file)
+    predictions = random_forrest_model.predict(df)
+    print(predictions)
+    #click.echo("Predictions:", predictions)
+    return predictions
+
+def part_2_predictor(text):
+    nlp=spacy.load("output/model-last")
+    doc=nlp(text)
+    for ent in doc.ents:
+        print(ent.text,ent.label_)
+
 @cli.command()
 @click.option('-r','--reload',is_flag=True,help="To reload and update the stats")
 @click.option('-p','--print',is_flag=True,help="add this to print the newly added entries")
@@ -126,7 +154,6 @@ def stats(ctx,reload,print):
         date_format = "%Y-%m-%d %H:%M:%S%z"
         start_date,current_date=maildb.get_latest_dates()
 
-        start_date=datetime.strptime(start_date, date_format)
         current_date=datetime.strptime(current_date, date_format)
         query_params = {
             "after":current_date.strftime("%Y/%m/%d"),
@@ -135,14 +162,14 @@ def stats(ctx,reload,print):
         filtered_messages=[]
         for message in messages:
             datetime.strptime(message.date,date_format)
-            if datetime.strptime(message.date,date_format)>current_date:
-                filtered_messages.append(message)
+            if message.html:
+                if datetime.strptime(message.date,date_format)>current_date:
+                    filtered_messages.append(message)
+                    k=part_1_predictor(extract_text_from_html(message.html))
+                    if k==[0] or k==[1]:
+                        click.echo(extract_text_from_html(message.html))
+                        part_2_predictor(extract_text_from_html(message.html))
 
-        totalMessages=len(messages)
-        for message in filtered_messages:
-            click.echo(message.date)
-        click.echo("wasap")
-        click.echo(filtered_messages[0].date)
 
         #maildb.set_dates(start_date,filtered_messages[0].date) TODO: when in production update dates
 
