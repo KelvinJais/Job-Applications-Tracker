@@ -5,4 +5,5 @@ Works by reading through your email, using NLP to extract company names and jobs
 ## Setup
 
 Setup includes going to google console and working it out there. Get a client_secret.json file. Then you are done.
+Gotta add more stuff here
 
