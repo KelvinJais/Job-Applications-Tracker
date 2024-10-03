@@ -63,7 +63,7 @@ class mail:
 
     def inputing_test_data(self):
         with self.connection:
-            self.cursor.execute("INSERT INTO Dates (start_date,current_date) VALUES (\"2024-09-11 20:55:05-04:00\",\"2024-09-16 20:55:05-04:00\")")
+            self.cursor.execute("INSERT INTO Dates (start_date,current_date) VALUES (\"2024-09-11 20:55:05-04:00\",\"2024-10-01 20:55:05-04:00\")")
 
         with self.connection:
             self.cursor.execute("INSERT INTO Stats (current_applied,current_reject,total_applied,total_reject) VALUES (5,1,100,20)")
@@ -132,8 +132,7 @@ def part_1_predictor(text):
     with open('part1model.pkl', 'rb') as model_file:
         random_forrest_model = pickle.load(model_file)
     predictions = random_forrest_model.predict(df)
-    print(predictions)
-    #click.echo("Predictions:", predictions)
+    print("Predictions:", predictions)
     return predictions
 
 def part_2_predictor(text):
@@ -165,11 +164,13 @@ def stats(ctx,reload,print):
             if message.html:
                 if datetime.strptime(message.date,date_format)>current_date:
                     filtered_messages.append(message)
+                    click.echo(extract_text_from_html(message.html))
                     k=part_1_predictor(extract_text_from_html(message.html))
                     if k==[0] or k==[1]:
-                        click.echo(extract_text_from_html(message.html))
                         part_2_predictor(extract_text_from_html(message.html))
 
+        click.echo(len(messages))
+        click.echo(len(filtered_messages))
 
         #maildb.set_dates(start_date,filtered_messages[0].date) TODO: when in production update dates
 
